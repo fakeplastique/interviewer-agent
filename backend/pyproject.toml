@@ -1,0 +1,23 @@
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+extend-exclude = ["alembic"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "ASYNC"]
+ignore = [
+    "E501",  # long lines inside prompt templates / messages
+    "B008",  # Depends(...) in argument defaults is idiomatic FastAPI
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["B", "ASYNC", "E402"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+pythonpath = ["."]
+testpaths = ["tests"]
+addopts = "-m 'not eval'"
+markers = [
+    "eval: live LLM evaluation tests, require ANTHROPIC_API_KEY (deselected by default)",
+]

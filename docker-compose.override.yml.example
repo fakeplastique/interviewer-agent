@@ -1,0 +1,8 @@
+# Local development overrides. Copy to docker-compose.override.yml (gitignored)
+# to get live-reload with host code mounted into the container.
+services:
+  backend:
+    environment:
+      DEBUG: "true"
+    volumes:
+      - ./backend:/app
