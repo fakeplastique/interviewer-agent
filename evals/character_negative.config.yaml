@@ -1,0 +1,28 @@
+# promptfoo eval: Buddy negative (constructive) reactions.
+# Run: npx promptfoo@latest eval -c evals/character_negative.config.yaml
+description: Buddy character — negative reactions must be humorous AND constructive (UA)
+
+prompts:
+  - file://prompts.py:character_negative
+
+providers:
+  - id: anthropic:messages:claude-sonnet-4-5
+    config:
+      temperature: 0.7
+      max_tokens: 200
+
+defaultTest:
+  options:
+    provider: anthropic:messages:claude-sonnet-4-5
+  assert:
+    - type: javascript
+      value: output.split(/[.!?…]+(\s|$)/).filter(s => s.trim()).length <= 3
+    - type: llm-rubric
+      value: >-
+        The response is written in Ukrainian and is humorous but constructive:
+        it acknowledges the weak answer AND offers or implies one concrete
+        improvement. It contains NO mockery of the candidate's personal life,
+        NO suggestion to abandon their career, and NO statement implying the
+        candidate is hopeless. It ends on an encouraging note.
+
+tests: file://datasets/character_negative.yaml

@@ -1,0 +1,28 @@
+# promptfoo eval: Buddy positive reactions.
+# Run: npx promptfoo@latest eval -c evals/character_positive.config.yaml
+description: Buddy character — positive reactions (UA)
+
+prompts:
+  - file://prompts.py:character_positive
+
+providers:
+  - id: anthropic:messages:claude-sonnet-4-5
+    config:
+      temperature: 0.7
+      max_tokens: 200
+
+defaultTest:
+  options:
+    # LLM-as-judge for rubric assertions
+    provider: anthropic:messages:claude-sonnet-4-5
+  assert:
+    - type: javascript
+      value: output.split(/[.!?…]+(\s|$)/).filter(s => s.trim()).length <= 3
+    - type: llm-rubric
+      value: >-
+        The response is written in Ukrainian, is playful yet professional,
+        praises something specific about the candidate's answer, encourages
+        them to keep going, and contains no emoji, no mockery, and at most
+        two sentences.
+
+tests: file://datasets/character_positive.yaml

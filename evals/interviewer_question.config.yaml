@@ -1,0 +1,27 @@
+# promptfoo eval: interviewer question generation.
+# Run: npx promptfoo@latest eval -c evals/interviewer_question.config.yaml
+description: Interviewer — question quality
+
+prompts:
+  - file://prompts.py:interviewer_question
+
+providers:
+  - id: anthropic:messages:claude-sonnet-4-5
+    config:
+      temperature: 0.8
+      max_tokens: 300
+
+defaultTest:
+  options:
+    provider: anthropic:messages:claude-sonnet-4-5
+  assert:
+    - type: javascript
+      value: output.length < 600
+    - type: llm-rubric
+      value: >-
+        The output is exactly ONE open-ended technical interview question about
+        the topic "{{topic}}", pitched appropriately for a {{level}} developer.
+        It probes genuine understanding rather than memorized trivia, and
+        contains no preamble, numbering, or commentary — only the question.
+
+tests: file://datasets/interviewer_question.yaml
