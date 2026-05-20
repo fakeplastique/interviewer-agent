@@ -1,47 +1,68 @@
-# MockAI — AI Mock Interview Platform
+# Interview Mocker — AI-Powered Mock Interview Platform
 
-A full-stack, production-ready prototype for an AI-powered mock interview service.
+An interactive web platform for practicing job interviews with an AI character. Built with Next.js, FastAPI, and LangGraph, powered by Anthropic's Claude API.
+
+## Features
+
+- **AI Interview Characters**: Realistic interviewer personalities that ask follow-up questions
+- **Real-time Feedback**: WebSocket-powered speech bubbles and instant character responses
+- **Text-to-Speech**: Natural speech synthesis with ElevenLabs integration
+- **Interview Analytics**: Performance scoring and detailed feedback
+- **Async-first Backend**: Built with FastAPI and Kafka for scalable real-time processing
 
 ## Tech Stack
 
 | Layer | Technology |
 |---|---|
-| Backend | Python 3.12, FastAPI, SQLAlchemy (async) |
-| AI Agent | LangGraph + LangChain + GPT-4o |
+| Backend | Python 3.12, FastAPI, asyncio |
+| AI Agent | LangGraph + LangChain + Claude (Anthropic API) |
 | Message Bus | Apache Kafka (via aiokafka) |
-| Database | PostgreSQL 16 |
-| Cache | Redis 7 |
-| Frontend | Next.js 14 (App Router, TypeScript) |
-| Auth | JWT (python-jose + bcrypt) |
-| DevOps | Docker Compose |
+| Database | SQLite (dev), PostgreSQL (prod) |
+| Speech | ElevenLabs TTS API |
+| Frontend | Next.js 14 (App Router, TypeScript, React) |
+| DevOps | Docker, Docker Compose, Railway |
 
 ## Architecture
 
 ```
-Browser ←→ Next.js ←→ FastAPI REST
-                           ↕ WebSocket (real-time)
-                       Kafka Topics
-                           ↕
-                      LangGraph Agent
-                       (GPT-4o)
-                           ↕
-                       PostgreSQL
+Browser (Next.js) ←→ FastAPI REST API
+      ↓                    ↓
+   WebSocket          Kafka Producer
+      ↑                    ↓
+      └─ Kafka Consumer ←→ LangGraph Agent
+                           (Claude)
+                             ↓
+                        PostgreSQL/SQLite
 ```
 
-### Kafka Topics
-| Topic | Purpose |
-|---|---|
-| `interview.started` | Triggers agent initialization |
-| `interview.answer` | Routes user answer to agent |
-| `interview.feedback` | Agent → WebSocket → browser |
-| `interview.completed` | Final report saved to DB |
+### Core Flows
+
+**Interview Start**
+1. User creates interview session
+2. Backend publishes `interview.started` event to Kafka
+3. LangGraph agent initializes with character context
+4. First question generated via Claude API
+5. Message streamed to browser via WebSocket
+
+**User Response**
+1. User answers question (text input)
+2. Frontend sends answer via REST API
+3. Backend publishes `interview.answer` event
+4. Agent evaluates response and generates follow-up/feedback
+5. Real-time updates pushed via WebSocket + optional TTS
+
+**Interview Completion**
+1. After configured question count, summarization node runs
+2. Claude generates detailed feedback and score
+3. Final report persisted to database
+4. Results displayed to user with analytics
 
 ## Quick Start
 
 ### 1. Configure environment
 ```bash
 cp .env.example .env
-# Add your OPENAI_API_KEY to .env
+# Add your ANTHROPIC_API_KEY and ELEVENLABS_API_KEY
 ```
 
 ### 2. Start all services
@@ -52,14 +73,22 @@ docker compose up --build
 ### 3. Open the app
 - **Frontend**: http://localhost:3000
 - **API Docs**: http://localhost:8000/api/docs
+- **Health Check**: http://localhost:8000/health
 
 ## Development (without Docker)
+
+### Prerequisites
+- Python 3.12+
+- Node.js 20+
+- Kafka (or use mock producer/consumer for testing)
 
 ### Backend
 ```bash
 cd backend
-pip install -r requirements.txt
-uvicorn app.main:app --reload
+pip install -r requirements-dev.txt
+export ANTHROPIC_API_KEY=your_key_here
+export ELEVENLABS_API_KEY=your_key_here
+uvicorn app.main:app --reload --port 8000
 ```
 
 ### Frontend
@@ -67,13 +96,16 @@ uvicorn app.main:app --reload
 cd frontend
 npm install
 npm run dev
+# Opens http://localhost:3000
 ```
 
 ### Run tests
 ```bash
 cd backend
-pip install aiosqlite  # for SQLite test DB
 pytest tests/ -v --cov=app --cov-report=term-missing
+
+# Run evaluation tests (requires ANTHROPIC_API_KEY)
+pytest tests/evals/ -m eval -v
 ```
 
 ## Project Structure
@@ -81,28 +113,64 @@ pytest tests/ -v --cov=app --cov-report=term-missing
 interview-mocker/
 ├── backend/
 │   ├── app/
-│   │   ├── agent/          # LangGraph nodes, graph, state
-│   │   ├── api/routes/     # FastAPI routers (auth, interviews, websocket)
-│   │   ├── kafka/          # Producer & consumer
-│   │   ├── models/         # SQLAlchemy ORM models
+│   │   ├── agent/          # LangGraph interview agent
+│   │   │   ├── graph.py    # Agentic loop
+│   │   │   ├── nodes.py    # Question, evaluate, summarize
+│   │   │   └── state.py    # Interview state schema
+│   │   ├── api/
+│   │   │   ├── routes/     # FastAPI routers
+│   │   │   │   ├── interviews.py
+│   │   │   │   ├── character.py
+│   │   │   │   ├── tts.py
+│   │   │   │   ├── users.py
+│   │   │   │   └── ws.py   # WebSocket
+│   │   │   └── deps.py     # Dependency injection
+│   │   ├── kafka/          # Event streaming
+│   │   │   ├── producer.py
+│   │   │   └── consumer.py
+│   │   ├── services/
+│   │   │   ├── llm.py      # Anthropic chat clients
+│   │   │   └── tts.py      # ElevenLabs TTS
+│   │   ├── models/         # Domain models
 │   │   ├── schemas/        # Pydantic schemas
-│   │   ├── db.py           # Async engine
+│   │   ├── core/           # Utilities (logging, rate limiting)
+│   │   ├── prompts/        # Interview character definitions
+│   │   ├── db.py           # Database initialization
 │   │   ├── config.py       # Settings
-│   │   └── main.py         # App entry point
+│   │   └── main.py         # Application factory
+│   ├── requirements.txt    # Production deps
+│   ├── requirements-dev.txt # Dev + test deps
 │   └── tests/              # pytest test suite
-└── frontend/
-    └── src/
-        ├── app/            # Next.js App Router pages
-        ├── components/     # Shared UI components
-        └── lib/            # API client, WebSocket, auth context
+├── frontend/
+│   ├── src/
+│   │   ├── app/            # Next.js App Router
+│   │   │   ├── interview/  # Interview UI
+│   │   │   ├── dashboard/  # Session browser
+│   │   │   └── results/    # Interview report
+│   │   ├── components/     # React components
+│   │   │   ├── CharacterPanel.tsx
+│   │   │   └── Navbar.tsx
+│   │   └── lib/            # Client utilities
+│   │       ├── ws.ts       # WebSocket manager
+│   │       ├── api.ts      # HTTP client
+│   │       └── auth.tsx    # Auth context
+│   └── package.json
+├── evals/                  # LLM evaluation configs
+│   ├── *.config.yaml       # Promptfoo configs
+│   └── datasets/           # Test data
+├── docker-compose.yml
+├── Dockerfile              # Frontend container
+└── .env.example            # Configuration template
 ```
 
-## Interview Flow
-1. User creates an interview (topic + level)
-2. Backend publishes `interview.started` to Kafka
-3. LangGraph agent generates questions via GPT-4o
-4. Each question is pushed to browser via WebSocket
-5. User submits answer → `interview.answer` Kafka event
-6. Agent evaluates answer, scores 0-10, gives feedback
-7. After N questions → summarize node generates full report
-8. `interview.completed` event persists final score to DB
+## Environment Variables
+
+Required:
+- `ANTHROPIC_API_KEY`: Claude API key from Anthropic
+- `ELEVENLABS_API_KEY`: Text-to-speech API key
+
+Optional:
+- `ALLOWED_ORIGINS`: CORS origins (default: `http://localhost:3000`)
+- `DATABASE_URL`: PostgreSQL connection string (defaults to SQLite)
+- `KAFKA_BROKERS`: Kafka bootstrap servers
+- `LLM_TIMEOUT_SECONDS`: API timeout (default: 30)
