@@ -9,16 +9,17 @@ Flow:
                                          ↓ (when max_questions reached)
                                       summarize → END
 """
-from langgraph.graph import StateGraph, START, END
 
-from app.agent.state import InterviewState
+from langgraph.graph import END, START, StateGraph
+
 from app.agent.nodes import (
-    greet_node,
     ask_question_node,
     evaluate_answer_node,
-    summarize_node,
+    greet_node,
     should_continue,
+    summarize_node,
 )
+from app.agent.state import InterviewState
 
 
 def build_interview_graph():

@@ -1,19 +1,21 @@
 """FastAPI application entry point."""
+
 import asyncio
 import logging
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.api.routes.character import router as character_router
+from app.api.routes.interviews import router as interviews_router
+from app.api.routes.tts import router as tts_router
+from app.api.routes.users import router as auth_router
+from app.api.routes.ws import router as ws_router
+from app.api.routes.ws import run_ws_feedback_consumer
 from app.config import settings
 from app.db import init_db
-from app.kafka.producer import stop_producer
 from app.kafka.consumer import run_consumer
-from app.api.routes.users import router as auth_router
-from app.api.routes.interviews import router as interviews_router
-from app.api.routes.ws import router as ws_router, run_ws_feedback_consumer
-from app.api.routes.tts import router as tts_router
-from app.api.routes.character import router as character_router
+from app.kafka.producer import stop_producer
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s — %(message)s")
 logger = logging.getLogger(__name__)

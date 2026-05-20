@@ -1,19 +1,20 @@
 """Tests for LangGraph agent nodes — idiomatic LangGraph approach."""
-import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
 
+from unittest.mock import AsyncMock, patch
+
+import pytest
 from langchain_core.messages import AIMessage
 
-from app.agent.state import InterviewState
 from app.agent.nodes import (
-    greet_node,
-    ask_question_node,
-    evaluate_answer_node,
-    summarize_node,
-    should_continue,
     EvaluationResult,
     SummaryResult,
+    ask_question_node,
+    evaluate_answer_node,
+    greet_node,
+    should_continue,
+    summarize_node,
 )
+from app.agent.state import InterviewState
 
 
 def make_state(**overrides) -> InterviewState:
@@ -36,6 +37,7 @@ def make_state(**overrides) -> InterviewState:
 
 # ── greet ────────────────────────────────────────────────────────────────────────
 
+
 @pytest.mark.asyncio
 async def test_greet_node():
     state = make_state()
@@ -44,6 +46,7 @@ async def test_greet_node():
 
 
 # ── ask_question ─────────────────────────────────────────────────────────────────
+
 
 @pytest.mark.asyncio
 async def test_ask_question_node():
@@ -68,10 +71,19 @@ async def test_ask_question_node_avoids_repeats():
 
     with patch("app.agent.nodes._llm") as mock_llm:
         mock_llm.ainvoke = AsyncMock(return_value=ai_msg)
-        state = make_state(questions=[
-            {"id": "q0", "text": "What is a decorator?", "answer": "...", "score": 7.0, "feedback": "Good"}
-        ], current_question_index=1)
-        result = await ask_question_node(state)
+        state = make_state(
+            questions=[
+                {
+                    "id": "q0",
+                    "text": "What is a decorator?",
+                    "answer": "...",
+                    "score": 7.0,
+                    "feedback": "Good",
+                }
+            ],
+            current_question_index=1,
+        )
+        await ask_question_node(state)
 
     # Second argument passed to ainvoke should contain the previous question
     call_messages = mock_llm.ainvoke.call_args[0][0]
@@ -81,18 +93,23 @@ async def test_ask_question_node_avoids_repeats():
 
 # ── evaluate_answer ───────────────────────────────────────────────────────────────
 
+
 @pytest.mark.asyncio
 async def test_evaluate_answer_node():
     """_eval_chain.ainvoke returns an EvaluationResult Pydantic object."""
     eval_result = EvaluationResult(score=8.5, feedback="Good explanation of decorators.")
 
-    state = make_state(questions=[{
-        "id": "q1",
-        "text": "What is a Python decorator?",
-        "answer": "A decorator wraps a function to extend its behavior.",
-        "score": None,
-        "feedback": None,
-    }])
+    state = make_state(
+        questions=[
+            {
+                "id": "q1",
+                "text": "What is a Python decorator?",
+                "answer": "A decorator wraps a function to extend its behavior.",
+                "score": None,
+                "feedback": None,
+            }
+        ]
+    )
 
     with patch("app.agent.nodes._eval_chain") as mock_chain:
         mock_chain.ainvoke = AsyncMock(return_value=eval_result)
@@ -106,24 +123,27 @@ async def test_evaluate_answer_node():
 @pytest.mark.asyncio
 async def test_evaluate_skips_when_no_unevaluated_answer():
     """No-op if all questions already have scores."""
-    state = make_state(questions=[{
-        "id": "q1", "text": "Q?", "answer": "A", "score": 7.0, "feedback": "ok"
-    }])
+    state = make_state(
+        questions=[{"id": "q1", "text": "Q?", "answer": "A", "score": 7.0, "feedback": "ok"}]
+    )
     result = await evaluate_answer_node(state)
     assert result == {}
 
 
 # ── summarize ─────────────────────────────────────────────────────────────────────
 
+
 @pytest.mark.asyncio
 async def test_summarize_node():
     """_summary_chain.ainvoke returns a SummaryResult Pydantic object."""
     summary_result = SummaryResult(overall_score=75.0, report="Solid Python knowledge.")
 
-    state = make_state(questions=[
-        {"id": "q1", "text": "Q1", "answer": "A1", "score": 7.0, "feedback": "Good"},
-        {"id": "q2", "text": "Q2", "answer": "A2", "score": 8.0, "feedback": "Great"},
-    ])
+    state = make_state(
+        questions=[
+            {"id": "q1", "text": "Q1", "answer": "A1", "score": 7.0, "feedback": "Good"},
+            {"id": "q2", "text": "Q2", "answer": "A2", "score": 8.0, "feedback": "Great"},
+        ]
+    )
 
     with patch("app.agent.nodes._summary_chain") as mock_chain:
         mock_chain.ainvoke = AsyncMock(return_value=summary_result)
@@ -135,6 +155,7 @@ async def test_summarize_node():
 
 
 # ── router ────────────────────────────────────────────────────────────────────────
+
 
 def test_should_continue_keep_asking():
     state = make_state(current_question_index=2, max_questions=5)

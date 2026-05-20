@@ -1,11 +1,11 @@
 """WebSocket gateway — bridges Kafka feedback topic to connected clients."""
+
 import asyncio
 import json
 import logging
-from typing import Dict, Set
 
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from aiokafka import AIOKafkaConsumer
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
 from app.config import settings
 
@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter(tags=["websocket"])
 
 # interview_id → set of connected WebSocket clients
-_connections: Dict[str, Set[WebSocket]] = {}
+_connections: dict[str, set[WebSocket]] = {}
 
 
 async def _broadcast(interview_id: str, message: dict) -> None:

@@ -1,13 +1,15 @@
 """Shared pytest fixtures."""
+
 import asyncio
-import pytest
-import pytest_asyncio
-from httpx import AsyncClient, ASGITransport
-from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
 from unittest.mock import AsyncMock, patch
 
-from app.main import app
+import pytest
+import pytest_asyncio
+from httpx import ASGITransport, AsyncClient
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+
 from app.db import get_db
+from app.main import app
 from app.models.interview import Base
 
 # Use SQLite in-memory for tests (no Postgres needed)
@@ -49,9 +51,7 @@ async def client(db_session: AsyncSession):
 
     # Mock Kafka publish so tests don't need a real broker
     with patch("app.api.routes.interviews.publish", new_callable=AsyncMock):
-        async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as ac:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
             yield ac
 
     app.dependency_overrides.clear()

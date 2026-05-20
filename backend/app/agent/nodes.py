@@ -1,5 +1,5 @@
-import uuid
 import logging
+import uuid
 from typing import Any
 
 from langchain_anthropic import ChatAnthropic
@@ -23,14 +23,17 @@ _llm = ChatAnthropic(
 
 # ── Pydantic-схеми для structured output ────────────────────────────────────────
 
+
 class EvaluationResult(BaseModel):
     """Результат оцінки однієї відповіді кандидата."""
+
     score: float = Field(ge=0, le=10, description="Score from 0 to 10")
     feedback: str = Field(description="Constructive 2-3 sentence feedback")
 
 
 class SummaryResult(BaseModel):
     """Фінальний звіт після всього інтерв'ю."""
+
     overall_score: float = Field(ge=0, le=100, description="Overall score 0-100")
     report: str = Field(description="3-5 sentence performance summary")
 
@@ -52,8 +55,7 @@ QUESTION_SYSTEM = (
 )
 
 EVALUATE_SYSTEM = (
-    "You are evaluating a technical interview answer. "
-    "Topic: {topic} | Candidate level: {level}"
+    "You are evaluating a technical interview answer. " "Topic: {topic} | Candidate level: {level}"
 )
 
 SUMMARIZE_SYSTEM = (
@@ -65,11 +67,14 @@ SUMMARIZE_SYSTEM = (
 
 # ── LangGraph nodes ──────────────────────────────────────────────────────────────
 
+
 async def greet_node(state: InterviewState) -> dict[str, Any]:
     """Стартовий вузол — позначає що привітання надіслано."""
     logger.info(
         "greet_node | interview=%s topic=%s level=%s",
-        state["interview_id"], state["topic"], state["level"],
+        state["interview_id"],
+        state["topic"],
+        state["level"],
     )
     return {"greeting_sent": True}
 
@@ -83,9 +88,7 @@ async def ask_question_node(state: InterviewState) -> dict[str, Any]:
         human_content = "Generate the first question."
 
     messages = [
-        SystemMessage(content=QUESTION_SYSTEM.format(
-            level=state["level"], topic=state["topic"]
-        )),
+        SystemMessage(content=QUESTION_SYSTEM.format(level=state["level"], topic=state["topic"])),
         HumanMessage(content=human_content),
     ]
 
@@ -101,7 +104,8 @@ async def ask_question_node(state: InterviewState) -> dict[str, Any]:
     }
     logger.info(
         "ask_question_node | q#%d: %.80s",
-        state["current_question_index"] + 1, question_text,
+        state["current_question_index"] + 1,
+        question_text,
     )
     return {
         "questions": [new_question],
@@ -112,12 +116,11 @@ async def ask_question_node(state: InterviewState) -> dict[str, Any]:
 async def evaluate_answer_node(state: InterviewState) -> dict[str, Any]:
     """
     Оцінює останню відповідь кандидата.
-    Використовує .with_structured_output(EvaluationResult) — 
+    Використовує .with_structured_output(EvaluationResult) —
     LangGraph сам парсить і валідує JSON через Pydantic.
     """
     target = next(
-        (q for q in reversed(state["questions"])
-         if q.get("answer") and q.get("score") is None),
+        (q for q in reversed(state["questions"]) if q.get("answer") and q.get("score") is None),
         None,
     )
     if target is None:
@@ -125,25 +128,22 @@ async def evaluate_answer_node(state: InterviewState) -> dict[str, Any]:
         return {}
 
     messages = [
-        SystemMessage(content=EVALUATE_SYSTEM.format(
-            topic=state["topic"], level=state["level"]
-        )),
-        HumanMessage(content=(
-            f"Question: {target['text']}\n\n"
-            f"Candidate's answer: {target['answer']}"
-        )),
+        SystemMessage(content=EVALUATE_SYSTEM.format(topic=state["topic"], level=state["level"])),
+        HumanMessage(
+            content=(f"Question: {target['text']}\n\n" f"Candidate's answer: {target['answer']}")
+        ),
     ]
 
     result: EvaluationResult = await _eval_chain.ainvoke(messages)
 
     logger.info(
         "evaluate_answer_node | q_id=%s score=%.1f",
-        target["id"], result.score,
+        target["id"],
+        result.score,
     )
 
     updated_questions = [
-        {**q, "score": result.score, "feedback": result.feedback}
-        if q["id"] == target["id"] else q
+        {**q, "score": result.score, "feedback": result.feedback} if q["id"] == target["id"] else q
         for q in state["questions"]
     ]
     return {"questions": updated_questions}
@@ -162,9 +162,7 @@ async def summarize_node(state: InterviewState) -> dict[str, Any]:
     )
 
     messages = [
-        SystemMessage(content=SUMMARIZE_SYSTEM.format(
-            topic=state["topic"], level=state["level"]
-        )),
+        SystemMessage(content=SUMMARIZE_SYSTEM.format(topic=state["topic"], level=state["level"])),
         HumanMessage(content=qa_block),
     ]
 
@@ -172,7 +170,8 @@ async def summarize_node(state: InterviewState) -> dict[str, Any]:
 
     logger.info(
         "summarize_node | interview=%s overall_score=%.1f",
-        state["interview_id"], result.overall_score,
+        state["interview_id"],
+        result.overall_score,
     )
     return {
         "overall_score": result.overall_score,
@@ -182,6 +181,7 @@ async def summarize_node(state: InterviewState) -> dict[str, Any]:
 
 
 # ── Conditional edge (router) ────────────────────────────────────────────────────
+
 
 def should_continue(state: InterviewState) -> str:
     """Роутер після evaluate_answer: продовжувати чи підсумовувати."""

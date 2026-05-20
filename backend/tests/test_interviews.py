@@ -1,4 +1,5 @@
 """Tests for Interview API endpoints."""
+
 import pytest
 from httpx import AsyncClient
 
@@ -73,15 +74,14 @@ async def test_start_interview_publishes_kafka(client: AsyncClient, auth_headers
     )
     interview_id = create_resp.json()["id"]
 
-    resp = await client.post(
-        f"/api/v1/interviews/{interview_id}/start", headers=auth_headers
-    )
+    resp = await client.post(f"/api/v1/interviews/{interview_id}/start", headers=auth_headers)
     assert resp.status_code == 200
 
 
 @pytest.mark.asyncio
 async def test_get_interview_not_found(client: AsyncClient, auth_headers: dict):
     import uuid
+
     fake_id = str(uuid.uuid4())
     resp = await client.get(f"/api/v1/interviews/{fake_id}", headers=auth_headers)
     assert resp.status_code == 404

@@ -1,12 +1,13 @@
 """Auth routes — register & login."""
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
 
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.api.deps import create_access_token, hash_password, verify_password
 from app.db import get_db
 from app.models.interview import User
-from app.schemas.interview import UserCreate, UserOut, Token, LoginRequest
-from app.api.deps import hash_password, verify_password, create_access_token
+from app.schemas.interview import LoginRequest, Token, UserCreate, UserOut
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -38,6 +39,10 @@ async def login(body: LoginRequest, db: AsyncSession = Depends(get_db)):
 
 
 @router.get("/me", response_model=UserOut)
-async def me(db: AsyncSession = Depends(get_db),
-             current_user: User = Depends(__import__("app.api.deps", fromlist=["get_current_user"]).get_current_user)):
+async def me(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(
+        __import__("app.api.deps", fromlist=["get_current_user"]).get_current_user
+    ),
+):
     return current_user

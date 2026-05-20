@@ -1,27 +1,25 @@
 """Kafka consumer — processes interview events and drives the LangGraph agent."""
+
 import json
-import asyncio
 import logging
 from datetime import datetime
 
 from aiokafka import AIOKafkaConsumer
-from sqlalchemy.ext.asyncio import AsyncSession
-
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
-from app.config import settings
-from app.db import AsyncSessionLocal
-from app.models.interview import Interview, Question, InterviewStatus
 from app.agent.nodes import (
-    greet_node,
     ask_question_node,
     evaluate_answer_node,
-    summarize_node,
+    greet_node,
     should_continue,
+    summarize_node,
 )
-from app.agent.state import InterviewState
+from app.agent.state import InterviewState, QuestionRecord
+from app.config import settings
+from app.db import AsyncSessionLocal
 from app.kafka.producer import publish
+from app.models.interview import Interview, InterviewStatus, Question
 
 logger = logging.getLogger(__name__)
 
@@ -87,7 +85,10 @@ async def _rebuild_state(interview_id: str) -> InterviewState | None:
             .options(selectinload(Interview.questions))
         )
         interview = result.scalar_one_or_none()
-        if not interview or interview.status not in (InterviewStatus.active, InterviewStatus.pending):
+        if not interview or interview.status not in (
+            InterviewStatus.active,
+            InterviewStatus.pending,
+        ):
             return None
 
         questions: list[QuestionRecord] = [
@@ -115,7 +116,9 @@ async def _rebuild_state(interview_id: str) -> InterviewState | None:
         "error": None,
     }
     _interview_states[interview_id] = state
-    logger.info("Rebuilt state for interview %s from DB (%d questions)", interview_id, len(questions))
+    logger.info(
+        "Rebuilt state for interview %s from DB (%d questions)", interview_id, len(questions)
+    )
     return state
 
 
@@ -135,8 +138,7 @@ async def _handle_answer(payload: dict) -> None:
 
     # Inject answer into the matching question
     state["questions"] = [
-        {**q, "answer": answer} if q["id"] == question_id else q
-        for q in state["questions"]
+        {**q, "answer": answer} if q["id"] == question_id else q for q in state["questions"]
     ]
 
     # Persist answer
@@ -152,9 +154,7 @@ async def _handle_answer(payload: dict) -> None:
     state.update(updates)
 
     # Persist score + feedback
-    evaluated_q = next(
-        (q for q in state["questions"] if q["id"] == question_id), None
-    )
+    evaluated_q = next((q for q in state["questions"] if q["id"] == question_id), None)
     if evaluated_q:
         async with AsyncSessionLocal() as db:
             db_q = await db.get(Question, question_id)

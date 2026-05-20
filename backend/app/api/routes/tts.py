@@ -3,9 +3,9 @@ from fastapi.responses import Response
 from pydantic import BaseModel
 
 from app.api.deps import get_current_user
+from app.config import settings
 from app.models.interview import User
 from app.services.tts import text_to_speech
-from app.config import settings
 
 router = APIRouter(prefix="/tts", tags=["tts"])
 
@@ -25,4 +25,4 @@ async def speak(
         audio = await text_to_speech(body.text)
         return Response(content=audio, media_type="audio/mpeg")
     except Exception as e:
-        raise HTTPException(status_code=502, detail=f"TTS service error: {e}")
+        raise HTTPException(status_code=502, detail=f"TTS service error: {e}") from e
