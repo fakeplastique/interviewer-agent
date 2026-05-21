@@ -19,10 +19,13 @@ export interface WSMessage {
 
 export function createInterviewSocket(
   interviewId: string,
+  token: string,
   onMessage: (msg: WSMessage) => void,
   onClose?: () => void
 ): WebSocket {
-  const ws = new WebSocket(`${WS_BASE}/ws/interviews/${interviewId}`);
+  const ws = new WebSocket(
+    `${WS_BASE}/ws/interviews/${interviewId}?token=${encodeURIComponent(token)}`
+  );
 
   ws.onmessage = (event) => {
     try {

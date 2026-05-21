@@ -102,7 +102,7 @@ export default function InterviewPage() {
       setProgress({ current: iv.questions.length, total: 5 });
     }).catch(console.error);
 
-    wsRef.current = createInterviewSocket(id, handleWsMessage, () => setConnecting(false));
+    wsRef.current = createInterviewSocket(id, token, handleWsMessage, () => setConnecting(false));
     wsRef.current.onopen = () => setConnecting(false);
 
     return () => wsRef.current?.close();
