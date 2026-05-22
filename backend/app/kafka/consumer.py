@@ -2,6 +2,7 @@
 
 import json
 import logging
+import uuid
 from datetime import datetime
 
 from aiokafka import AIOKafkaConsumer
@@ -51,13 +52,13 @@ async def _handle_interview_started(payload: dict) -> None:
     async with AsyncSessionLocal() as db:
         q = state["questions"][-1]
         db_q = Question(
-            id=q["id"],
-            interview_id=interview_id,
+            id=uuid.UUID(q["id"]),
+            interview_id=uuid.UUID(interview_id),
             text=q["text"],
             order=state["current_question_index"],
         )
         db.add(db_q)
-        interview = await db.get(Interview, interview_id)
+        interview = await db.get(Interview, uuid.UUID(interview_id))
         if interview:
             interview.status = InterviewStatus.active
         await db.commit()
@@ -81,7 +82,7 @@ async def _rebuild_state(interview_id: str) -> InterviewState | None:
     async with AsyncSessionLocal() as db:
         result = await db.execute(
             select(Interview)
-            .where(Interview.id == interview_id)
+            .where(Interview.id == uuid.UUID(interview_id))
             .options(selectinload(Interview.questions))
         )
         interview = result.scalar_one_or_none()
@@ -143,7 +144,7 @@ async def _handle_answer(payload: dict) -> None:
 
     # Persist answer
     async with AsyncSessionLocal() as db:
-        db_q = await db.get(Question, question_id)
+        db_q = await db.get(Question, uuid.UUID(question_id))
         if db_q:
             db_q.answer = answer
             db_q.answered_at = datetime.utcnow()
@@ -157,7 +158,7 @@ async def _handle_answer(payload: dict) -> None:
     evaluated_q = next((q for q in state["questions"] if q["id"] == question_id), None)
     if evaluated_q:
         async with AsyncSessionLocal() as db:
-            db_q = await db.get(Question, question_id)
+            db_q = await db.get(Question, uuid.UUID(question_id))
             if db_q:
                 db_q.score = evaluated_q["score"]
                 db_q.feedback = evaluated_q["feedback"]
@@ -180,8 +181,8 @@ async def _handle_answer(payload: dict) -> None:
         new_q = state["questions"][-1]
         async with AsyncSessionLocal() as db:
             db_q = Question(
-                id=new_q["id"],
-                interview_id=interview_id,
+                id=uuid.UUID(new_q["id"]),
+                interview_id=uuid.UUID(interview_id),
                 text=new_q["text"],
                 order=state["current_question_index"],
             )
@@ -202,7 +203,7 @@ async def _handle_answer(payload: dict) -> None:
     else:
         state.update(await summarize_node(state))
         async with AsyncSessionLocal() as db:
-            interview = await db.get(Interview, interview_id)
+            interview = await db.get(Interview, uuid.UUID(interview_id))
             if interview:
                 interview.status = InterviewStatus.completed
                 interview.score = state["overall_score"]
