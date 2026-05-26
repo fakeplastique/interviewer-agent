@@ -25,6 +25,17 @@ from app.models.interview import Interview, InterviewStatus, Question
 
 logger = logging.getLogger(__name__)
 
+
+def _apply_question_update(state: InterviewState, update: dict) -> None:
+    """Merge an ask_question_node result, appending to `questions` instead of
+    overwriting it — these nodes are written for LangGraph's operator.add
+    reducer, but the consumer drives them by hand outside the graph."""
+    new_questions = update.pop("questions", None)
+    state.update(update)
+    if new_questions is not None:
+        state["questions"] = state["questions"] + new_questions
+
+
 # In-memory state store (replace with Redis for multi-instance deployment)
 _interview_states: dict[str, InterviewState] = {}
 
@@ -46,7 +57,7 @@ async def _handle_interview_started(payload: dict) -> None:
         "error": None,
     }
     state.update(await greet_node(state))
-    state.update(await ask_question_node(state))
+    _apply_question_update(state, await ask_question_node(state))
     _interview_states[interview_id] = state
 
     # Persist question to DB
@@ -178,7 +189,7 @@ async def _handle_answer(payload: dict) -> None:
 
     route = should_continue(state)
     if route == "ask_question":
-        state.update(await ask_question_node(state))
+        _apply_question_update(state, await ask_question_node(state))
         new_q = state["questions"][-1]
         async with AsyncSessionLocal() as db:
             db_q = Question(
