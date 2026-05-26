@@ -18,6 +18,7 @@ from app.agent.nodes import (
 )
 from app.agent.state import InterviewState, QuestionRecord
 from app.config import settings
+from app.core.text import sanitize_text
 from app.db import AsyncSessionLocal
 from app.kafka.producer import publish
 from app.models.interview import Interview, InterviewStatus, Question
@@ -33,7 +34,7 @@ async def _handle_interview_started(payload: dict) -> None:
     interview_id = payload["interview_id"]
     state: InterviewState = {
         "interview_id": interview_id,
-        "topic": payload["topic"],
+        "topic": sanitize_text(payload["topic"], max_length=100),
         "level": payload["level"],
         "questions": [],
         "current_question_index": 0,
@@ -127,7 +128,7 @@ async def _handle_answer(payload: dict) -> None:
     """Inject answer into state, evaluate, then ask next or summarize."""
     interview_id = payload["interview_id"]
     question_id = payload["question_id"]
-    answer = payload["answer"]
+    answer = sanitize_text(payload["answer"], max_length=5000)
 
     state = _interview_states.get(interview_id)
     if not state:
