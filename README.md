@@ -17,7 +17,7 @@ An interactive web platform for practicing job interviews with an AI character. 
 | Backend | Python 3.12, FastAPI, asyncio |
 | AI Agent | LangGraph + LangChain + Claude (Anthropic API) |
 | Message Bus | Apache Kafka (via aiokafka) |
-| Database | SQLite (dev), PostgreSQL (prod) |
+| Database | PostgreSQL (dev/prod), SQLite (tests only) |
 | Speech | ElevenLabs TTS API |
 | Frontend | Next.js 14 (App Router, TypeScript, React) |
 | DevOps | Docker, Docker Compose, Railway |
@@ -171,6 +171,7 @@ Required:
 
 Optional:
 - `ALLOWED_ORIGINS`: CORS origins (default: `http://localhost:3000`)
-- `DATABASE_URL`: PostgreSQL connection string (defaults to SQLite)
+- `DATABASE_URL`: PostgreSQL connection string (defaults to a local Postgres instance; the test suite always uses in-memory SQLite regardless of this setting)
+- `ENVIRONMENT`: `development` (default) or `production` — production rejects the default/short `SECRET_KEY`
 - `KAFKA_BROKERS`: Kafka bootstrap servers
 - `LLM_TIMEOUT_SECONDS`: API timeout (default: 30)
